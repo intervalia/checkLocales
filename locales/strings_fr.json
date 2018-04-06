@@ -1,0 +1,5 @@
+{
+  "LABEL_IMAGE_X_OF_Y": "Image %{number} de %{count}",
+  "JUST_NUMBERS": "{0} {2} {1}",
+  "HTML": "<button class=\"mon-bouton\">Acheter un cerf-volant</button>"
+}
