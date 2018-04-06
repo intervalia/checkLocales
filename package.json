@@ -1,5 +1,5 @@
 {
-  "name": "checklocales",
+  "name": "checkLocales",
   "version": "1.0.0",
   "description": "A Utility to check the validity of locale JSON files.",
   "main": "./bin/checkLocales.js",
