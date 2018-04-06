@@ -19,6 +19,7 @@ const options = {
 }
 
 var cwd = process.cwd();
+var hadErrors = false;
 
 console.log(clc.blueBright('\n\ncheckLocale version '+VERSION+'\n'));
 
@@ -39,6 +40,23 @@ process.argv.forEach(
     }
   }
 );
+
+
+function help() {
+  var options = clc.yellow('options');
+  console.log(
+`Check translations of strings in the non-English locale files.
+Reports any strings missing from each locale file and the number of non-English strings deleted, if any.
+
+Usage: ${clc.green('cleanlocale')} ${options}
+
+where ${options} include:
+  -b   Make backup files.
+  -d   Delete strings that are no longer found in the English file.
+  -r   Recursivly scan sub-folders.
+  -?   Help. Output this content.
+`);
+}
 
 function processStrings(data, enStrings, group) {
   var enStringKeys = Object.keys(enStrings);
@@ -66,6 +84,7 @@ function processStrings(data, enStrings, group) {
                   var same = results2.indexOf(key) > -1;
                   if (!same) {
                     errors.push(`\n${clc.green(shortFn)}:\nThe string for key ${clc.green(stringKey)} was incorrectly translated. ${clc.red(key)} was translated or is missing.\nThe string "${clc.yellowBright(enStrings[stringKey])}" became "${clc.yellowBright(newStrings[stringKey])}"`);
+                    hadErrors = true;
                     return true;
                   }
                   return false;
@@ -81,6 +100,7 @@ function processStrings(data, enStrings, group) {
                 var same = results.indexOf(key) > -1;
                 if (!same) {
                   errors.push(`\n${clc.green(shortFn)}:\nThe string for key ${clc.green(stringKey)} was incorrectly translated. ${clc.red(key)} is an incorrect translation.\nThe string "${clc.yellowBright(enStrings[stringKey])}" became "${clc.yellowBright(newStrings[stringKey])}"`);
+                  hadErrors = true;
                   return true;
                 }
                 return false;
@@ -100,15 +120,20 @@ function processStrings(data, enStrings, group) {
         }
       }
 
-      errors.forEach(function(error) {
-        console.error(error);
-      });
-
-      enStringKeys.forEach(function(stringkey) {
-        if (!newStrings.hasOwnProperty(stringkey)) {
-          console.error(`\n${clc.green(shortFn)} is missing the key "${clc.red(stringkey)}"`);
+      errors.forEach(
+        error => {
+          console.error(error);
         }
-      });
+      );
+
+      enStringKeys.forEach(
+        stringkey => {
+          if (!newStrings.hasOwnProperty(stringkey)) {
+            console.error(`\n${clc.green(shortFn)} is missing the key "${clc.red(stringkey)}"`);
+            hadErrors = true;
+          }
+        }
+      );
 
       if (options.deleteExtra) {
         if (options.makeBackup) {
@@ -118,6 +143,7 @@ function processStrings(data, enStrings, group) {
           }
           fs.renameSync(fn, fnBak);
         }
+
         fs.writeFileSync(fn, JSON.stringify(newStrings, null, 2)+'\n');
       }
     }
@@ -250,19 +276,9 @@ else {
 }
 console.log(clc.blueBright('\nFinished processing.'), `(${duration})`);
 
-
-function help() {
-  var options = clc.yellow('options');
-  console.log(
-`Check translations of strings in the non-English locale files.
-Reports any strings missing from each locale file and the number of non-English strings deleted, if any.
-
-Usage: ${clc.green('cleanlocale')} ${options}
-
-where ${options} include:
-  -b   Make backup files.
-  -d   Delete strings that are no longer found in the English file.
-  -r   Recursivly scan sub-folders.
-  -?   Help. Output this content.
-`);
+if (hadErrors) {
+  process.exit(1);
+}
+else {
+  console.log('No errors were found.');
 }
