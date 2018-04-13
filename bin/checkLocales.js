@@ -130,7 +130,7 @@ function processStrings(data, enStrings, group) {
         stringkey => {
           if (!newStrings.hasOwnProperty(stringkey)) {
             console.error(`\n${clc.green(shortFn)} is missing the key "${clc.red(stringkey)}"`);
-            hadErrors = true;
+            //hadErrors = true;
           }
         }
       );
