@@ -1,10 +1,10 @@
 {
   "name": "checkLocales",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A Utility to check the validity of locale JSON files.",
   "main": "./bin/checkLocales.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "checkLocales -r"
   },
   "bin": {
     "checkLocales": "./bin/checkLocales.js"

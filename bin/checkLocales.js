@@ -13,6 +13,7 @@ const PARTIALS_FOLDER_NAME = 'partials';
 const SKIP_FOLDER_LIST = ['.DS_Store', '.nyc_output', 'bower_components', 'components', '.git', 'dist', 'docs', 'reports', 'coverage', 'bin', 'node_modules', 'test', 'vendors'];
 
 const options = {
+  defaultLocale: 'en',
   deleteExtra: false,
   makeBackup: false,
   recursive: false
@@ -21,7 +22,7 @@ const options = {
 var cwd = process.cwd();
 var hadErrors = false;
 
-console.log(clc.blueBright('\n\ncheckLocale version '+VERSION+'\n'));
+console.log(clc.blueBright('\n\ncheckLocales version '+VERSION+'\n'));
 
 process.argv.forEach(
   function (arg) {
@@ -38,6 +39,9 @@ process.argv.forEach(
       help();
       process.exit(0);
     }
+    else if (arg.substr(0,3) === '-l:') {
+      options.defaultLocale = arg.substr(3);
+    }
   }
 );
 
@@ -45,23 +49,23 @@ process.argv.forEach(
 function help() {
   var options = clc.yellow('options');
   console.log(
-`Check translations of strings in the non-English locale files.
-Reports any strings missing from each locale file and the number of non-English strings deleted, if any.
+`Check translations of strings in the non-default locale files.
+Reports any strings missing from each locale file and the number of non-default strings deleted, if any.
+The default locale in English ('en') unless changed by the -l option.
 
 Usage: ${clc.green('cleanlocale')} ${options}
 
 where ${options} include:
-  -b   Make backup files.
-  -d   Delete strings that are no longer found in the English file.
-  -r   Recursivly scan sub-folders.
-  -?   Help. Output this content.
+  -b           Make backup files. This does nothing id -d is not also set.
+  -d           Delete strings that are no longer found in the default file.
+  -l:<locale>  Set the default locale. For example: -l:fr sets the default locale to 'fr' (French).
+  -r           Recursively scan sub-folders.
+  -?           Help. Output this content.
 `);
 }
 
-function processStrings(data, enStrings, group) {
-  var enStringKeys = Object.keys(enStrings);
-  //console.log('enStrings:', enStrings);
-  //console.log('enKeys: '+enStringKeys);
+function processStrings(data, defaultStrings, group, options) {
+  var defaultStringKeys = Object.keys(defaultStrings);
 
   Object.keys(data).forEach(
     lang => {
@@ -74,16 +78,16 @@ function processStrings(data, enStrings, group) {
 
       Object.keys(strs).sort().forEach(
         stringKey => {
-          if (enStringKeys.indexOf(stringKey) > -1) {
+          if (defaultStringKeys.indexOf(stringKey) > -1) {
             newStrings[stringKey] = strs[stringKey];
-            var results = enStrings[stringKey].match(i18nRe);
+            var results = defaultStrings[stringKey].match(i18nRe);
             if (results) {
               var results2 = newStrings[stringKey].match(i18nRe);
               results.some(
                 key => {
                   var same = results2.indexOf(key) > -1;
                   if (!same) {
-                    errors.push(`\n${clc.green(shortFn)}:\nThe string for key ${clc.green(stringKey)} was incorrectly translated. ${clc.red(key)} was translated or is missing.\nThe string "${clc.yellowBright(enStrings[stringKey])}" became "${clc.yellowBright(newStrings[stringKey])}"`);
+                    errors.push(`${clc.green(shortFn)}:\n${clc.red('ERROR:')} The string for key ${clc.green(stringKey)} was incorrectly translated. ${clc.red(key)} was translated or is missing.\nThe string "${clc.yellowBright(defaultStrings[stringKey])}" became "${clc.yellowBright(newStrings[stringKey])}"\n`);
                     hadErrors = true;
                     return true;
                   }
@@ -93,13 +97,13 @@ function processStrings(data, enStrings, group) {
             }
 
 
-            results = enStrings[stringKey].match(htmlRe);
+            results = defaultStrings[stringKey].match(htmlRe);
             if (results) {
               var results2 = newStrings[stringKey].match(htmlRe);
               results2.some(function(key) {
                 var same = results.indexOf(key) > -1;
                 if (!same) {
-                  errors.push(`\n${clc.green(shortFn)}:\nThe string for key ${clc.green(stringKey)} was incorrectly translated. ${clc.red(key)} is an incorrect translation.\nThe string "${clc.yellowBright(enStrings[stringKey])}" became "${clc.yellowBright(newStrings[stringKey])}"`);
+                  errors.push(`${clc.green(shortFn)}:\n${clc.red('ERROR:')} The string for key ${clc.green(stringKey)} was incorrectly translated. ${clc.red(key)} is an incorrect translation.\nThe string "${clc.yellowBright(defaultStrings[stringKey])}" became "${clc.yellowBright(newStrings[stringKey])}"\n`);
                   hadErrors = true;
                   return true;
                 }
@@ -116,7 +120,7 @@ function processStrings(data, enStrings, group) {
       if (options.deleteExtra) {
         removed = Object.keys(strs).length - Object.keys(newStrings).length;
         if (removed > 0) {
-          console.log(clc.yellowBright(`Removed ${removed} unused strings`));
+          console.info(clc.yellowBright(`INFO: Removed ${removed} unused strings\n`));
         }
       }
 
@@ -126,11 +130,11 @@ function processStrings(data, enStrings, group) {
         }
       );
 
-      enStringKeys.forEach(
+      defaultStringKeys.forEach(
         stringkey => {
           if (!newStrings.hasOwnProperty(stringkey)) {
-            console.error(`\n${clc.green(shortFn)} is missing the key "${clc.red(stringkey)}"`);
-            //hadErrors = true;
+            console.warn(clc.yellowBright('WARNING: ')+clc.green(shortFn)+clc.yellowBright(' is missing the key "')+clc.red(stringkey)+'"\n');
+            //hadErrors = true; // This is really just a warning.
           }
         }
       );
@@ -150,7 +154,7 @@ function processStrings(data, enStrings, group) {
   );
 }
 
-function processFolder(startPath) {
+function processFolder(startPath, options) {
   var fn = path.basename(startPath);
   if (fn === LOCALES_FOLDER_NAME || fn === PARTIALS_FOLDER_NAME) {
     cwd = startPath;
@@ -158,30 +162,27 @@ function processFolder(startPath) {
   else {
     cwd = path.join(startPath, LOCALES_FOLDER_NAME);
   }
-  console.log(`Processing for folder: ${clc.green(cwd)}`);
+  console.info(`Processing for folder: ${clc.green(cwd)}`);
   var fileNames = fs.readdirSync(cwd);
   var content = {};
   fileNames.forEach(function(fileName) {
-    //console.log('file: ', fileName);
     var ext = path.extname(fileName);
     if (ext === '.json') {
       var basename = path.basename(fileName, ext);
       var lang = basename.slice(-2);
       var group = basename.slice(0,-3);
-      //console.log('names:', basename, group, lang);
       var fn = path.join(cwd, fileName);
       if (lang !== 'eo') {
         if (!content.hasOwnProperty(group)) {
-          //console.log('Creating object for', group);
           content[group] = {
             data: {},
-            enStrings: {}
+            defaultStrings: {}
           };
         }
 
         var strings = JSON.parse(fs.readFileSync(fn, 'utf8'));
-        if (lang === 'en') {
-          content[group].enStrings = strings;
+        if (lang === options.defaultLocale) {
+          content[group].defaultStrings = strings;
         }
         else {
           content[group].data[lang] = {
@@ -196,14 +197,13 @@ function processFolder(startPath) {
   });
 
   Object.keys(content).forEach(function(group) {
-    //console.log('group:', content[group]);
-    var enStrings = content[group].enStrings;
+    var defaultStrings = content[group].defaultStrings;
     var data = content[group].data;
-    if (!enStrings) {
-      console.error(clc.black.bgRed(`English strings could not be found for ${group}!`));
+    if (!defaultStrings) {
+      console.error(clc.black.bgRed(`ERROR: Default strings (${options.defaultLocale}) could not be found for ${group}!\n`));
     }
     else {
-      processStrings(data, enStrings, group);
+      processStrings(data, defaultStrings, group, options);
     }
   });
 }
@@ -213,28 +213,22 @@ function getSubLocaleFolders(startPath) {
   var fileList = fs.readdirSync(startPath);
 
   fileList.forEach(function(fileName) {
-    //console.log('fileName:', fileName);
     if (SKIP_FOLDER_LIST.indexOf(fileName) === -1) {
       var newPath = path.join(startPath, fileName);
-      //console.log(newPath);
       var stat = fs.statSync(newPath);
       if (stat.isDirectory()) {
-        //console.log('Directory:', newPath);
         if (fileName === LOCALES_FOLDER_NAME) {
-          //console.log('Adding path: '+clc.green(newPath));
           paths.push(newPath);
 
           // TODO: Process ALL folders under the 'locales' folder and not just partials
           var partialsPath = path.join(newPath, PARTIALS_FOLDER_NAME);
           if (fs.existsSync(partialsPath)) {
-            //console.log('Adding path: '+clc.green(partialsPath));
             paths.push(partialsPath);
           }
         }
         else if (fileName === PARTIALS_FOLDER_NAME) {
           var temp = path.basename(startPath);
           if (temp === LOCALES_FOLDER_NAME) {
-            //console.log('Adding path: '+clc.green(newPath));
             paths.push(newPath);
           }
         }
@@ -255,14 +249,13 @@ if (options.recursive) {
     paths.unshift(cwd);
   }
 
-  //console.log('paths to inspect:', paths);
   paths.forEach(function(localePath) {
-    processFolder(localePath);
-    console.log('\n');
+    processFolder(localePath, options);
+    //console.log('\n');
   });
 }
 else {
-  processFolder(process.cwd());
+  processFolder(process.cwd(), options);
 }
 
 // Display how long it took to run
@@ -274,7 +267,7 @@ if (duration < 1500) {
 else {
   duration = (duration/1000).toFixed(2)+'sec';
 }
-console.log(clc.blueBright('\nFinished processing.'), `(${duration})`);
+console.log(clc.blueBright('checkLocales finished processing.'), `(${duration})`);
 
 if (hadErrors) {
   process.exit(1);
