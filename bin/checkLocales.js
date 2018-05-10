@@ -29,7 +29,7 @@ process.argv.forEach(
     if (arg === '-b') {
       options.makeBackup = true;
     }
-    else if (arg === '-d') {
+    else if (arg === '-d') { // TODO: Skip the Linogport specific keys
       options.deleteExtra = true;
     }
     else if (arg === '-r') {
@@ -120,7 +120,7 @@ function processStrings(data, defaultStrings, group, options) {
       if (options.deleteExtra) {
         removed = Object.keys(strs).length - Object.keys(newStrings).length;
         if (removed > 0) {
-          console.info(clc.yellowBright(`INFO: Removed ${removed} unused strings\n`));
+          console.info(clc.yellowBright(`INFO: Removed ${removed} unused strings.`));
         }
       }
 
@@ -133,7 +133,7 @@ function processStrings(data, defaultStrings, group, options) {
       defaultStringKeys.forEach(
         stringkey => {
           if (!newStrings.hasOwnProperty(stringkey)) {
-            console.warn(clc.yellowBright('WARNING: ')+clc.green(shortFn)+clc.yellowBright(' is missing the key "')+clc.red(stringkey)+'"\n');
+            console.warn(clc.yellowBright('WARNING: ')+clc.green(shortFn)+clc.yellowBright(' is missing the key "')+clc.red(stringkey)+'"');
             //hadErrors = true; // This is really just a warning.
           }
         }
@@ -200,7 +200,7 @@ function processFolder(startPath, options) {
     var defaultStrings = content[group].defaultStrings;
     var data = content[group].data;
     if (!defaultStrings) {
-      console.error(clc.black.bgRed(`ERROR: Default strings (${options.defaultLocale}) could not be found for ${group}!\n`));
+      console.error(clc.black.bgRed(`ERROR: Default strings (${options.defaultLocale}) could not be found for ${group}!`));
     }
     else {
       processStrings(data, defaultStrings, group, options);
